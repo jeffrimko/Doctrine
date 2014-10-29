@@ -1,0 +1,5 @@
+Doctrine Notes
+==============
+:date: 19 October 2014
+
+  - '201410192200': Not sure why but `asciidoc.py` is needed in the root `app/` directory for the built EXE. Without it, an import error is thrown by the `asciidocapi.py`.
