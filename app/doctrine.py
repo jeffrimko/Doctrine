@@ -43,6 +43,9 @@ WILDCARD = "Asciidoc Text (*.txt)|*.txt|" \
         "Zip Archive (*.zip)|*.zip|" \
         "All files (*.*)|*.*"
 
+# Name of the generated HTML document.
+DOCHTML = "__doctrine__.html"
+
 ##==============================================================#
 ## SECTION: Class Definitions                                   #
 ##==============================================================#
@@ -67,7 +70,8 @@ class DoctrineApp(wx.App):
         self.Bind(wx.EVT_MENU, self._nav_forward, self.mainwin.nm_forward)
         self.Bind(wx.EVT_MENU, self._nav_backward, self.mainwin.nm_backward)
         self.Bind(wx.EVT_MENU, self.quit, self.mainwin.fm_quit)
-        self.Bind(wx.html2.EVT_WEBVIEW_NAVIGATING, self._handle_navigate, self.mainwin.mainpanel.webview)
+        self.Bind(wx.html2.EVT_WEBVIEW_NAVIGATING, self._handle_navigating, self.mainwin.mainpanel.webview)
+        self.Bind(wx.html2.EVT_WEBVIEW_NAVIGATED, self._handle_navigated, self.mainwin.mainpanel.webview)
         self.mainwin.Bind(wx.EVT_CLOSE, self.quit)
 
         # Set UI to initial state.
@@ -90,7 +94,12 @@ class DoctrineApp(wx.App):
     def _set_doc(self, path):
         """Sets the document to be rendered. Returns true if a new document has
         been set, false otherwise."""
-        path = str(path)
+        path = os.path.normpath(str(path))
+
+        # Delete temporary directory if a new document is set.
+        if self.tmpdir and  os.path.basename(path) != DOCHTML:
+            if os.path.exists(self.tmpdir):
+                shutil.rmtree(self.tmpdir)
 
         # Handle file type.
         if path.endswith(".txt"):
@@ -110,10 +119,19 @@ class DoctrineApp(wx.App):
 
         return True
 
-    def _handle_navigate(self, event=None):
-        """Handles a navigation event."""
+    def _handle_navigating(self, event=None):
+        """Handles a navigating event."""
         url = event.GetURL()
         if self._set_doc(url):
+            self._load_doc()
+
+    def _handle_navigated(self, event=None):
+        url = event.GetURL()
+        if url.endswith(".zip"):
+            # NOTE: This is a hack to get the IE backend to properly render the
+            # document. Without this extra `_load_doc()` call, the zip file
+            # contents will be shown if the file was drag-and-dropped onto the
+            # web view window.
             self._load_doc()
 
     def _open_file(self, event=None):
@@ -154,7 +172,7 @@ class DoctrineApp(wx.App):
         """Creates the rendered HTML."""
         if not self.docpath:
             return
-        self.tmppath = os.path.join(os.path.dirname(self.docpath), "__doctrine__.html")
+        self.tmppath = os.path.join(os.path.dirname(self.docpath), DOCHTML)
         AsciiDocAPI().execute(self.docpath, self.tmppath)
 
     def _delete_html(self):
