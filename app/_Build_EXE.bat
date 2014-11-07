@@ -17,6 +17,9 @@
 :: Output directory for build.
 set OUTDIR=__output__
 
+:: Set up optional PAUSE.
+if "%1" equ "nopause" (set PAUSE=) else (set PAUSE=pause)
+
 ::=============================================================::
 :: SECTION: Main Body                                          ::
 ::=============================================================::
@@ -26,5 +29,5 @@ pyinstaller doctrine.spec
 mv *.log %OUTDIR% 2>NUL
 mv build %OUTDIR% 2>NUL
 mv dist %OUTDIR% 2>NUL
-pause
+%PAUSE%
 exit /b 0
