@@ -219,6 +219,19 @@ class AsciiDocAPI(object):
         Compile infile to outfile using backend format.
         infile can outfile can be file path strings or file like objects.
         """
+
+        # NOTE: (JRR@201411062020) This is a hack to prevent document header
+        # attributes from being carried over after a file has been rendered.
+        self.asciidoc.AttributeEntry.attributes = {}
+        self.asciidoc.document.attributes['date'] = None
+        self.asciidoc.document.attributes['revdate'] = None
+        self.asciidoc.document.attributes['author'] = ""
+        self.asciidoc.document.attributes['firstname'] = ""
+        self.asciidoc.document.attributes['lastname'] = ""
+        self.asciidoc.document.attributes['title'] = ""
+        self.asciidoc.document.attributes['doctitle'] = ""
+        self.asciidoc.document.attributes['asciidoc-args'] = ""
+
         self.messages = []
         opts = Options(self.options.values)
         if outfile is not None:
@@ -246,7 +259,6 @@ class AsciiDocAPI(object):
         except SystemExit, e:
             if e.code:
                 raise AsciiDocError(self.messages[-1])
-
 
 if __name__ == "__main__":
     """
