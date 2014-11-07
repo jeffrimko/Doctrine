@@ -13,6 +13,6 @@
 :: SECTION: Main Body                                          ::
 ::=============================================================::
 
-rd /S /Q __output__
-del /S /Q *.log
-del /S /Q *.pyc
+rd /S /Q __output__ 2>NUL
+del /S /Q *.log 2>NUL
+del /S /Q *.pyc 2>NUL
