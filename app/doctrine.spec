@@ -1,23 +1,25 @@
 # -*- mode: python -*-
 
 # Include all spellcheck dictionary files, as a folder named dict
-dict_tree = Tree('./asciidoc', prefix = 'asciidoc')
+dict_tree = Tree('./asciidoc', prefix='asciidoc')
+static_tree = Tree('./static', prefix='static')
 
 a = Analysis(['doctrine.py'],
-             pathex=['.'],
-             hiddenimports=[],
-             hookspath=None,
-             runtime_hooks=None)
+        pathex=['.'],
+        hiddenimports=[],
+        hookspath=None,
+        runtime_hooks=None)
 pyz = PYZ(a.pure)
 exe = EXE(pyz,
-          a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
-          dict_tree,
-          name='doctrine.exe',
-          debug=False,
-          strip=None,
-          upx=True,
-          console=False,
-          icon='doc.ico')
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        dict_tree,
+        static_tree,
+        name='doctrine.exe',
+        debug=False,
+        strip=None,
+        upx=True,
+        console=False,
+        icon='doc.ico')

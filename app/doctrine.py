@@ -17,6 +17,7 @@ import urllib
 import urlparse
 import webbrowser
 import zipfile
+import os.path as op
 
 import wx
 import wx.html2
@@ -29,11 +30,14 @@ import doctview
 ##==============================================================#
 
 # Set up the Asciidoc environment.
+os.environ['ASCIIDOC_PY'] = r"asciidoc\asciidoc.py"
 if getattr(sys, 'frozen', None):
-    asciidoc_path = os.path.normpath(os.path.join(sys._MEIPASS, r"asciidoc"))
-    os.environ['ASCIIDOC_PY'] = os.path.join(asciidoc_path, "asciidoc.py")
-else:
-    os.environ['ASCIIDOC_PY'] = r"asciidoc\asciidoc.py"
+    os.environ['ASCIIDOC_PY'] = op.normpath(op.join(sys._MEIPASS, r"asciidoc\asciidoc.py"))
+
+# Splash displayed at startup.
+SPLASH = r"static\splash.html"
+if getattr(sys, 'frozen', None):
+    SPLASH = op.join(sys._MEIPASS, r"static\splash.html")
 
 # Name and version of the application.
 NAMEVER = "Doctrine 0.1.0-alpha"
@@ -45,6 +49,9 @@ WILDCARD = "Asciidoc Text (*.txt)|*.txt|" \
 
 # Name of the generated HTML document.
 DOCHTML = "__doctrine__.html"
+
+# Name of archive info file.
+ARCINFO = "__archive_info__.txt"
 
 ##==============================================================#
 ## SECTION: Class Definitions                                   #
@@ -94,30 +101,39 @@ class DoctrineApp(wx.App):
     def _set_doc(self, path):
         """Sets the document to be rendered. Returns true if a new document has
         been set, false otherwise."""
-        path = os.path.normpath(str(path))
+        path = op.normpath(str(path))
 
         # Delete temporary directory if a new document is set.
-        if self.tmpdir and  os.path.basename(path) != DOCHTML:
-            if os.path.exists(self.tmpdir):
+        if self.tmpdir and  op.basename(path) != DOCHTML:
+            if op.exists(self.tmpdir):
                 shutil.rmtree(self.tmpdir)
 
         # Handle file type.
         if path.endswith(".txt"):
             self.docpath = str(path)
+            return True
         elif path.endswith(".zip"):
+            # Extract all zip contents to a temporary directory.
             self.tmpdir = tempfile.mkdtemp()
             zfile = zipfile.ZipFile(path)
             zfile.extractall(self.tmpdir)
+
+            # Attempt to locate archive info file.
+            arcinfo = op.join(self.tmpdir, ARCINFO)
+            if op.exists(arcinfo):
+                self.docpath = arcinfo
+                return True
+
+            # Attempt to locate any text file.
             txts = findfile("*.txt", self.tmpdir)
             if txts:
                 self.docpath = txts[0]
-            else:
-                self._delete_tmpdir()
-                return False
-        else:
-            return False
+                return True
 
-        return True
+            # Delete the temporary directory since no valid document was found.
+            self._delete_tmpdir()
+
+        return False
 
     def _handle_navigating(self, event=None):
         """Handles a navigating event."""
@@ -172,21 +188,21 @@ class DoctrineApp(wx.App):
         """Creates the rendered HTML."""
         if not self.docpath:
             return
-        self.tmppath = os.path.join(os.path.dirname(self.docpath), DOCHTML)
+        self.tmppath = op.join(op.dirname(self.docpath), DOCHTML)
         AsciiDocAPI().execute(self.docpath, self.tmppath)
 
     def _delete_html(self):
         """Deletes the rendered HTML."""
         if not self.tmppath:
             return
-        if os.path.exists(self.tmppath):
+        if op.exists(self.tmppath):
             os.remove(self.tmppath)
 
     def _delete_tmpdir(self):
         """Deletes the temporary directory."""
         if not self.tmpdir:
             return
-        if os.path.exists(self.tmpdir):
+        if op.exists(self.tmpdir):
             shutil.rmtree(self.tmpdir)
 
     def show_main(self):
@@ -197,6 +213,8 @@ class DoctrineApp(wx.App):
         """Runs the main application loop."""
         if self.docpath:
             self._load_doc()
+        else:
+            self.mainwin.mainpanel.webview.LoadURL(path2url(SPLASH))
         self.MainLoop()
 
     def quit(self, event=None):
@@ -212,7 +230,7 @@ class DoctrineApp(wx.App):
 def path2url(path):
     """Converts a local path to a valid file URL. Taken from
     `http://stackoverflow.com/a/14298190/789078`."""
-    path = os.path.abspath(path)
+    path = op.abspath(path)
     return urlparse.urljoin("file:", urllib.pathname2url(path))
 
 def findfile(pattern, path):
@@ -222,9 +240,8 @@ def findfile(pattern, path):
     for root, dirs, files in os.walk(path):
         for name in files:
             if fnmatch.fnmatch(name, pattern):
-                result.append(os.path.join(root, name))
+                result.append(op.join(root, name))
     return result
-
 
 ##==============================================================#
 ## SECTION: Main Body                                           #
@@ -232,7 +249,7 @@ def findfile(pattern, path):
 
 if __name__ == '__main__':
     app = DoctrineApp()
-    if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
+    if len(sys.argv) > 1 and op.isfile(sys.argv[1]):
         app.docpath = str(sys.argv[1])
     app.show_main()
     app.run_loop()
