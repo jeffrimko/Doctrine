@@ -60,10 +60,14 @@ ARCINFO = "__archive_info__.txt"
 class DoctrineApp(wx.App):
     def OnInit(self):
         self._init_ui()
+        #: Path to the document to render.
         self.docpath = None
+        #: Path to the temporary rendered document.
         self.tmppath = None
+        #: Path to a temporary directory, if needed.
         self.tmpdir = None
-        self.redirect = False
+        #: If true, delete the document after rendering.
+        self.deldoc = False
         return True
 
     def _init_ui(self):
@@ -111,6 +115,16 @@ class DoctrineApp(wx.App):
         # Handle file type.
         if path.endswith(".txt"):
             self.docpath = str(path)
+            return True
+        elif path.endswith(".csv"):
+            self.docpath = op.join(op.dirname(path), "__temp__.txt")
+            self.deldoc = True
+            with open(self.docpath, "w") as f:
+                # Create basic AsciiDoc file to render CSV as a table.
+                f.write('[format="csv"]\n')
+                f.write("|===\n")
+                f.write("include::" + path + "[]\n")
+                f.write("|===\n")
             return True
         elif path.endswith(".zip"):
             # Extract all zip contents to a temporary directory.
@@ -190,6 +204,9 @@ class DoctrineApp(wx.App):
             return
         self.tmppath = op.join(op.dirname(self.docpath), DOCHTML)
         AsciiDocAPI().execute(self.docpath, self.tmppath)
+        if self.deldoc:
+            os.remove(self.docpath)
+            self.deldoc = False
 
     def _delete_html(self):
         """Deletes the rendered HTML."""
