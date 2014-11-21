@@ -15,6 +15,7 @@ import sys
 import tempfile
 import urllib
 import urlparse
+import uuid
 import webbrowser
 import zipfile
 import os.path as op
@@ -52,8 +53,10 @@ WILDCARD = "Asciidoc Text (*.txt)|*.txt|" \
         "Zip Archive (*.zip)|*.zip|" \
         "All files (*.*)|*.*"
 
-# Name of the generated HTML document.
-DOCHTML = "__doctrine__.html"
+# Prefix of the generated HTML document.
+DOCPRE = "__doctrine-"
+# Extension of the generated HTML document.
+DOCEXT = ".html"
 
 # Name of archive info file.
 ARCINFO = "__archive_info__.txt"
@@ -69,6 +72,7 @@ class DoctrineApp(wx.App):
         self.tmppath = None
         self.tmpdir = None
         self.redirect = False
+        self.deldoc = False
         return True
 
     def _init_ui(self):
@@ -107,11 +111,19 @@ class DoctrineApp(wx.App):
         """Sets the document to be rendered. Returns true if a new document has
         been set, false otherwise."""
         path = op.normpath(str(path))
+        self.deldoc = False
 
         # Delete temporary directory if a new document is set.
-        if self.tmpdir and op.basename(path) != DOCHTML:
+        # if self.tmpdir and op.basename(path) != DOCHTML:
+        if self.tmpdir and not op.basename(path).startswith(DOCPRE):
             if op.exists(self.tmpdir):
                 shutil.rmtree(self.tmpdir)
+
+        # Open linked web URLs in the default browser.
+        if (path.startswith("http:") or path.startswith("https:")) and self.tmppath:
+            webbrowser.open(path)
+            self._display_html() # Needed to prevent navigation to website.
+            return
 
         # Handle file type.
         if path.endswith(".txt"):
@@ -137,6 +149,16 @@ class DoctrineApp(wx.App):
 
             # Delete the temporary directory since no valid document was found.
             self._delete_tmpdir()
+
+        elif path.endswith(".csv"):
+            self.docpath = getuniqname(op.dirname(path), ".txt", "__temp-")
+            with open(self.docpath, "w") as f:
+                f.write('[format="csv"]\n')
+                f.write("|===\n")
+                f.write("include::" + path + "[]\n")
+                f.write("|===\n")
+            self.deldoc = True
+            return True
 
         return False
 
@@ -194,8 +216,11 @@ class DoctrineApp(wx.App):
         """Creates the rendered HTML."""
         if not self.docpath:
             return
-        self.tmppath = op.join(op.dirname(self.docpath), DOCHTML)
+        self.tmppath = getuniqname(op.dirname(self.docpath), DOCEXT, DOCPRE)
         AsciiDocAPI().execute(self.docpath, self.tmppath)
+        if self.deldoc:
+            os.remove(self.docpath)
+            self.deldoc = False
 
     def _delete_html(self):
         """Deletes the rendered HTML."""
@@ -203,6 +228,7 @@ class DoctrineApp(wx.App):
             return
         if op.exists(self.tmppath):
             os.remove(self.tmppath)
+            self.tmppath = None
 
     def _delete_tmpdir(self):
         """Deletes the temporary directory."""
@@ -210,6 +236,7 @@ class DoctrineApp(wx.App):
             return
         if op.exists(self.tmpdir):
             shutil.rmtree(self.tmpdir)
+            self.tmpdir = None
 
     def show_main(self):
         """Shows the main application."""
@@ -232,6 +259,15 @@ class DoctrineApp(wx.App):
 ##==============================================================#
 ## SECTION: Function Definitions                                #
 ##==============================================================#
+
+def getuniqname(base, ext, pre=""):
+    """Returns a random file name at the given base directory. Does not create
+    a file. Does not check if name is unique."""
+    uniq = op.join(base, pre + "tmp" + str(uuid.uuid4())[:6] + ext)
+    if os.path.exists(uniq):
+        uniq = op.join(base, pre + "tmp" + str(uuid.uuid4())[:6] + ext)
+    return uniq
+
 
 def path2url(path):
     """Converts a local path to a valid file URL. Taken from
