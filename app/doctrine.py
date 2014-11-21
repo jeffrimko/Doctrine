@@ -39,6 +39,11 @@ SPLASH = r"static\splash.html"
 if getattr(sys, 'frozen', None):
     SPLASH = op.join(sys._MEIPASS, r"static\splash.html")
 
+# Rednering message displayed when document loaded.
+RENDER = r"static\render.html"
+if getattr(sys, 'frozen', None):
+    RENDER = op.join(sys._MEIPASS, r"static\render.html")
+
 # Name and version of the application.
 NAMEVER = "Doctrine 0.1.0-alpha"
 
@@ -104,7 +109,7 @@ class DoctrineApp(wx.App):
         path = op.normpath(str(path))
 
         # Delete temporary directory if a new document is set.
-        if self.tmpdir and  op.basename(path) != DOCHTML:
+        if self.tmpdir and op.basename(path) != DOCHTML:
             if op.exists(self.tmpdir):
                 shutil.rmtree(self.tmpdir)
 
@@ -162,6 +167,7 @@ class DoctrineApp(wx.App):
         :Preconditions:
           - Attribute `docpath` should be set to a valid file to render.
         """
+        self.mainwin.mainpanel.webview.LoadURL(path2url(RENDER))
         self._delete_html()
         self._create_html()
         self._display_html()
