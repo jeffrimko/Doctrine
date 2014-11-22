@@ -8,8 +8,10 @@
 ## SECTION: Imports                                             #
 ##==============================================================#
 
+import filecmp
 import fnmatch
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -19,6 +21,7 @@ import uuid
 import webbrowser
 import zipfile
 import os.path as op
+from ctypes import *
 
 import wx
 import wx.html2
@@ -113,17 +116,25 @@ class DoctrineApp(wx.App):
         path = op.normpath(str(path))
         self.deldoc = False
 
-        # Delete temporary directory if a new document is set.
-        # if self.tmpdir and op.basename(path) != DOCHTML:
-        if self.tmpdir and not op.basename(path).startswith(DOCPRE):
-            if op.exists(self.tmpdir):
-                shutil.rmtree(self.tmpdir)
-
         # Open linked web URLs in the default browser.
         if (path.startswith("http:") or path.startswith("https:")) and self.tmppath:
             webbrowser.open(path)
             self._display_html() # Needed to prevent navigation to website.
             return
+
+        # Delete temporary directory if a new document is set.
+        if self.tmpdir:
+            # HACK ALERT: the `fixwinpath()` calls are needed because sometimes
+            # a short path name is returned. Also sometimes the path is lower
+            # case so just force it lower on windows.
+            chk_tmp = self.tmpdir
+            chk_pth = path
+            if "Windows" == platform.system():
+                chk_tmp = fixwinpath(chk_tmp)
+                chk_pth = fixwinpath(chk_pth)
+            common = op.commonprefix([chk_pth, chk_tmp])
+            if not common == chk_tmp:
+                self._delete_tmpdir()
 
         # Handle file type.
         if path.endswith(".txt"):
@@ -268,7 +279,6 @@ def getuniqname(base, ext, pre=""):
         uniq = op.join(base, pre + "tmp" + str(uuid.uuid4())[:6] + ext)
     return uniq
 
-
 def path2url(path):
     """Converts a local path to a valid file URL. Taken from
     `http://stackoverflow.com/a/14298190/789078`."""
@@ -284,6 +294,12 @@ def findfile(pattern, path):
             if fnmatch.fnmatch(name, pattern):
                 result.append(op.join(root, name))
     return result
+
+def fixwinpath(path):
+    buf = create_unicode_buffer(500)
+    winpath = windll.kernel32.GetLongPathNameW
+    winpath(unicode(path), buf, 500)
+    return str(buf.value).lower()
 
 ##==============================================================#
 ## SECTION: Main Body                                           #
