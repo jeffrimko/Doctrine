@@ -124,12 +124,12 @@ class DoctrineApp(wx.App):
 
         # Delete temporary directory if a new document is set.
         if self.tmpdir:
-            # HACK ALERT: the `fixwinpath()` calls are needed because sometimes
-            # a short path name is returned. Also sometimes the path is lower
-            # case so just force it lower on windows.
             chk_tmp = self.tmpdir
             chk_pth = path
             if "Windows" == platform.system():
+                # HACK ALERT: the `fixwinpath()` calls are needed because
+                # sometimes a short path name is returned. Also sometimes the
+                # path is lower case so just force it lower on windows.
                 chk_tmp = fixwinpath(chk_tmp)
                 chk_pth = fixwinpath(chk_pth)
             common = op.commonprefix([chk_pth, chk_tmp])
@@ -272,11 +272,12 @@ class DoctrineApp(wx.App):
 ##==============================================================#
 
 def getuniqname(base, ext, pre=""):
-    """Returns a random file name at the given base directory. Does not create
-    a file. Does not check if name is unique."""
-    uniq = op.join(base, pre + "tmp" + str(uuid.uuid4())[:6] + ext)
-    if os.path.exists(uniq):
+    """Returns a unique random file name at the given base directory. Does not
+    create a file."""
+    while True:
         uniq = op.join(base, pre + "tmp" + str(uuid.uuid4())[:6] + ext)
+        if not os.path.exists(uniq):
+            break
     return uniq
 
 def path2url(path):
@@ -296,6 +297,7 @@ def findfile(pattern, path):
     return result
 
 def fixwinpath(path):
+    """Returns a lowercase full path for any given windows path."""
     buf = create_unicode_buffer(500)
     winpath = windll.kernel32.GetLongPathNameW
     winpath(unicode(path), buf, 500)
