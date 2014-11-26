@@ -52,9 +52,9 @@ if getattr(sys, 'frozen', None):
 NAMEVER = "Doctrine 0.1.0-alpha"
 
 # Default open file wildcard.
-WILDCARD = "Asciidoc Text (*.txt)|*.txt|" \
-        "Zip Archive (*.zip)|*.zip|" \
-        "All files (*.*)|*.*"
+WILDCARD = "Asciidoc Text|*.txt;*.ad;*.adoc;*.asciidoc|" \
+        "Zip Archive|*.zip|" \
+        "All files|*.*"
 
 # Prefix of the generated HTML document.
 DOCPRE = "__doctrine-"
