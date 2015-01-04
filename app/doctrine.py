@@ -115,6 +115,7 @@ class DoctrineApp(wx.App):
         been set, false otherwise."""
         path = op.normpath(str(path))
         self.deldoc = False
+        self.docpath = None
 
         # Open linked web URLs in the default browser.
         if (path.startswith("http:") or path.startswith("https:")) and self.tmppath:
@@ -141,6 +142,7 @@ class DoctrineApp(wx.App):
             self.docpath = str(path)
             return True
         elif path.endswith(".zip"):
+            print "DBGMRK 2"
             # Extract all zip contents to a temporary directory.
             self.tmpdir = tempfile.mkdtemp()
             zfile = zipfile.ZipFile(path)
@@ -181,12 +183,16 @@ class DoctrineApp(wx.App):
 
     def _handle_navigated(self, event=None):
         url = event.GetURL()
+        print "DBGMRK 1", self.docpath
         if url.endswith(".zip"):
-            # NOTE: This is a hack to get the IE backend to properly render the
-            # document. Without this extra `_load_doc()` call, the zip file
-            # contents will be shown if the file was drag-and-dropped onto the
-            # web view window.
-            self._load_doc()
+            if self.docpath:
+                # NOTE: This is a hack to get the IE backend to properly render the
+                # document. Without this extra `_load_doc()` call, the zip file
+                # contents will be shown if the file was drag-and-dropped onto the
+                # web view window.
+                self._load_doc()
+            else:
+                self.mainwin.mainpanel.webview.LoadURL(path2url(SPLASH))
 
     def _open_file(self, event=None):
         """Handles an open file event."""
