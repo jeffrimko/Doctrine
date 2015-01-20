@@ -1,87 +1,98 @@
-"""This script implements the GUI view layer of the Doctrine application."""
-
-##==============================================================#
-## COPYRIGHT 2014, REVISED 2014, Jeff Rimko.                    #
-##==============================================================#
-
-##==============================================================#
-## SECTION: Imports                                             #
-##==============================================================#
-
 import os
+import sys
 
-import wx
-import wx.html2
+import PySide
+from PySide.QtCore import *
+from PySide.QtGui import *
+from PySide.QtWebKit import *
+from asciidocapi import AsciiDocAPI
 
-##==============================================================#
-## SECTION: Global Definitions                                  #
-##==============================================================#
+os.environ['ASCIIDOC_PY'] = r"asciidoc\asciidoc.py"
 
-# Default window size.
-WIN_SZ = (800, 600)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super(MainWindow, self).__init__()
 
-##==============================================================#
-## SECTION: Class Definitions                                   #
-##==============================================================#
-
-class MainPanel(wx.Panel):
-    """The main panel of the application."""
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        self.webview = wx.html2.WebView.New(self)
-        sizer.Add(self.webview, 1, wx.EXPAND, 10)
-        self.SetSizer(sizer)
-
-class MainWindow(wx.Frame):
-    """The main window of the application."""
-    def __init__(self, parent, title):
-        """This function defines initialization logic of the main window."""
-        self.parent = parent
-        wx.Frame.__init__(self,
-                self.parent,
-                title=title)
+        # Set up window.
+        # self.setWindowTitle("Doctrine")
+        self.resize(800, 600)
 
         # Set up `File` menu.
-        filemenu = wx.Menu()
-        self.fm_open = filemenu.Append(wx.ID_OPEN, "&Open")
-        self.fm_dispbw = filemenu.Append(-1, "&Display in browser")
-        self.fm_reload = filemenu.Append(-1, "&Reload")
-        self.fm_quit = filemenu.Append(wx.ID_EXIT, "&Quit", "Quit application")
+        self.menu_file = QMenu("&File")
+        self.actn_open = QAction("&Open", self.menu_file)
+        self.actn_reload = QAction("&Reload", self.menu_file)
+        self.actn_display = QAction("&Display in browser", self.menu_file)
+        self.actn_quit = QAction("&Quit", self.menu_file)
+        self.menu_file.addAction(self.actn_open)
+        self.menu_file.addAction(self.actn_reload)
+        self.menu_file.addAction(self.actn_display)
+        self.menu_file.addAction(self.actn_quit)
 
-        navmenu = wx.Menu()
-        self.nm_backward = navmenu.Append(-1, "Backward")
-        self.nm_forward = navmenu.Append(-1, "Forward")
+        self.menu_navi = QMenu("&Navigation")
+        self.actn_frwd = QAction("&Forward", self.menu_navi)
+        self.actn_back = QAction("&Backward", self.menu_navi)
+        self.menu_navi.addAction(self.actn_frwd)
+        self.menu_navi.addAction(self.actn_back)
 
         # Set up main menu bar.
-        self.menubar = wx.MenuBar()
-        self.menubar.Append(filemenu, '&File')
-        self.menubar.Append(navmenu, '&Navigate')
-        self.SetMenuBar(self.menubar)
+        self.menubar = QMenuBar()
+        self.menubar.addMenu(self.menu_file)
+        self.menubar.addMenu(self.menu_navi)
+        self.setMenuBar(self.menubar)
 
-        # Set up main web view.
-        self.mainpanel = MainPanel(self)
+        self.webview = WebView()
+        self.setCentralWidget(self.webview)
 
-        self.SetSize(WIN_SZ)
+    def show_open_file(self, filter_="All Files (*)"):
+        f,_ = QFileDialog.getOpenFileName(self, filter=filter_)
+        return str(f)
 
-    def show_open_file(self, wildcard):
-        """Shows the open file dialog with the given wildcard."""
-        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", wildcard, wx.OPEN)
-        if dialog.ShowModal() == wx.ID_OK:
-            return dialog.GetPath()
-        return None
+class WebView(QWidget):
+    def __init__(self):
+        super(WebView, self).__init__()
+        self.view = QWebView(self)
 
-    def show(self):
-        """Shows the main window."""
-        self.Show(True)
+        self.setupInspector()
 
-##==============================================================#
-## SECTION: Main Body                                           #
-##==============================================================#
+        splitter = QSplitter(self)
+        splitter.setOrientation(Qt.Vertical)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0,0,0,0)
+        layout.addWidget(splitter)
+
+        splitter.addWidget(self.view)
+        splitter.addWidget(self.inpsect)
+
+    def setupInspector(self):
+        page = self.view.page()
+        page.settings().setAttribute(QWebSettings.DeveloperExtrasEnabled, True)
+        self.inpsect = QWebInspector(self)
+        self.inpsect.setPage(page)
+
+        shortcut = QShortcut(self)
+        shortcut.setKey(QKeySequence("F12"))
+        shortcut.activated.connect(self.toggleInspector)
+        self.inpsect.setVisible(False)
+
+    def toggleInspector(self):
+        self.inpsect.setVisible(not self.inpsect.isVisible())
+
+class WebPage(QWebPage):
+    """
+    Makes it possible to use a Python logger to print javascript console messages
+    """
+    def __init__(self, logger=None, parent=None):
+        super(WebPage, self).__init__(parent)
+        if not logger:
+            logger = logging
+        self.logger = logger
+
+    def javaScriptConsoleMessage(self, msg, lineNumber, sourceID):
+        self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
 
 if __name__ == '__main__':
-    # Demo of GUI.
-    app = wx.App(False)
-    frame = MainWindow(None, "demo")
-    frame.Show()
-    app.MainLoop()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    app.exec_()

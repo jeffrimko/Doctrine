@@ -1,13 +1,4 @@
-"""This script implements the main Doctrine application."""
-
-##==============================================================#
-## DEVELOPED 2014, REVISED 2014, Jeff Rimko.                    #
-##==============================================================#
-
-##==============================================================#
-## SECTION: Imports                                             #
-##==============================================================#
-
+from ctypes import *
 import filecmp
 import fnmatch
 import os
@@ -20,232 +11,248 @@ import urlparse
 import uuid
 import webbrowser
 import zipfile
+import time
 import os.path as op
-from ctypes import *
 
-import wx
-import wx.html2
+import PySide
+from PySide.QtCore import *
+from PySide.QtGui import *
+from PySide.QtWebKit import *
 from asciidocapi import AsciiDocAPI
-
 import doctview
-
-##==============================================================#
-## SECTION: Global Definitions                                  #
-##==============================================================#
 
 # Set up the Asciidoc environment.
 os.environ['ASCIIDOC_PY'] = r"asciidoc\asciidoc.py"
 if getattr(sys, 'frozen', None):
     os.environ['ASCIIDOC_PY'] = op.normpath(op.join(sys._MEIPASS, r"asciidoc\asciidoc.py"))
 
-# Splash displayed at startup.
-SPLASH = r"static\splash.html"
-if getattr(sys, 'frozen', None):
-    SPLASH = op.join(sys._MEIPASS, r"static\splash.html")
-
-# Rednering message displayed when document loaded.
-RENDER = r"static\render.html"
-if getattr(sys, 'frozen', None):
-    RENDER = op.join(sys._MEIPASS, r"static\render.html")
-
-# Name and version of the application.
-NAMEVER = "Doctrine 0.1.0-alpha"
-
-# Default open file wildcard.
-WILDCARD = "Asciidoc Text|*.txt;*.ad;*.adoc;*.asciidoc|" \
-        "Zip Archive|*.zip|" \
-        "All files|*.*"
-
 # Prefix of the generated HTML document.
 DOCPRE = "__doctrine-"
 # Extension of the generated HTML document.
 DOCEXT = ".html"
 
+URLFILE = "file:///"
+
 # Name of archive info file.
 ARCINFO = "__archive_info__.txt"
 
-##==============================================================#
-## SECTION: Class Definitions                                   #
-##==============================================================#
+# Name and version of the application.
+NAMEVER = "Doctrine 0.1.0-alpha"
 
-class DoctrineApp(wx.App):
-    def OnInit(self):
+class DoctrineApp(QApplication):
+    def __init__(self, *args, **kwargs):
+        super(DoctrineApp, self).__init__(*args, **kwargs)
+        self.aboutToQuit.connect(self._handle_quit)
         self._init_ui()
+        self.deldoc = False
         self.docpath = None
         self.tmppath = None
         self.tmpdir = None
-        self.redirect = False
-        self.deldoc = False
-        return True
 
     def _init_ui(self):
-        """Initializes the application UI elements."""
-        self.mainwin = doctview.MainWindow(None, NAMEVER)
+        self.mainwin = doctview.MainWindow()
+        self.mainwin.actn_reload.setDisabled(True)
+        self.mainwin.actn_display.setDisabled(True)
+        self.mainwin.menu_navi.setDisabled(True)
+        self.mainwin.webview.view.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
+        self.mainwin.actn_open.triggered.connect(self._handle_open)
+        self.mainwin.actn_quit.triggered.connect(self.quit)
+        self.mainwin.actn_reload.triggered.connect(self._handle_reload)
+        self.mainwin.actn_frwd.triggered.connect(self._nav_forward)
+        self.mainwin.actn_back.triggered.connect(self._nav_back)
+        self.mainwin.actn_display.triggered.connect(self._handle_display)
+        self.mainwin.webview.view.linkClicked.connect(self._handle_link)
+        self.mainwin.webview.view.setAcceptDrops(True)
+        self.mainwin.webview.view.dragEnterEvent = self._handle_drag
+        self.mainwin.webview.view.dropEvent = self._handle_drop
+        shortcut = QShortcut(self.mainwin)
+        shortcut.setKey(QKeySequence("F5"))
+        shortcut.activated.connect(self._handle_reload)
+        self.mainwin.setWindowTitle(NAMEVER)
+        # NOTE: Use to create custom context menu.
+        self.mainwin.webview.view.contextMenuEvent = self._handle_context
+        self.mainwin.webview.view.mouseReleaseEvent = self._handle_mouse
+        self.mainwin.show = self._handle_show
 
-        # Bind UI events.
-        self.Bind(wx.EVT_MENU, self._open_file, self.mainwin.fm_open)
-        self.Bind(wx.EVT_MENU, self._load_doc, self.mainwin.fm_reload)
-        self.Bind(wx.EVT_MENU, self._display_browser, self.mainwin.fm_dispbw)
-        self.Bind(wx.EVT_MENU, self._nav_forward, self.mainwin.nm_forward)
-        self.Bind(wx.EVT_MENU, self._nav_backward, self.mainwin.nm_backward)
-        self.Bind(wx.EVT_MENU, self.quit, self.mainwin.fm_quit)
-        self.Bind(wx.html2.EVT_WEBVIEW_NAVIGATING, self._handle_navigating, self.mainwin.mainpanel.webview)
-        self.Bind(wx.html2.EVT_WEBVIEW_NAVIGATED, self._handle_navigated, self.mainwin.mainpanel.webview)
-        self.mainwin.Bind(wx.EVT_CLOSE, self.quit)
+    def _handle_show(self):
+        QMainWindow.show(self.mainwin)
+        if self.docpath:
+            self._load_doc(self.docpath)
 
-        # Set UI to initial state.
-        self.mainwin.fm_reload.Enable(False)
-        self.mainwin.fm_dispbw.Enable(False)
-        self.mainwin.menubar.EnableTop(1, False)
+    def _nav_forward(self):
+        self.mainwin.webview.view.page().triggerAction(QWebPage.Forward)
 
-    def _nav_forward(self, event=None):
-        """Handles navigation forward."""
-        webview = self.mainwin.mainpanel.webview
-        if webview.CanGoForward():
-            webview.GoForward()
+    def _nav_back(self):
+        self.mainwin.webview.view.page().triggerAction(QWebPage.Back)
 
-    def _nav_backward(self, event=None):
-        """Handles navigation backward."""
-        webview = self.mainwin.mainpanel.webview
-        if webview.CanGoBack():
-            webview.GoBack()
-
-    def _set_doc(self, path):
-        """Sets the document to be rendered. Returns true if a new document has
-        been set, false otherwise."""
-        path = op.normpath(str(path))
-        self.deldoc = False
-        self.docpath = None
-
-        # Open linked web URLs in the default browser.
-        if (path.startswith("http:") or path.startswith("https:")) and self.tmppath:
-            webbrowser.open(path)
-            self._display_html() # Needed to prevent navigation to website.
+    def _handle_mouse(self, event=None):
+        if event.button() == Qt.MouseButton.XButton1:
+            self._nav_back()
             return
+        if event.button() == Qt.MouseButton.XButton2:
+            self._nav_forward()
+            return
+        return QWebView.mouseReleaseEvent(self.mainwin.webview.view, event)
 
-        # Delete temporary directory if a new document is set.
-        if self.tmpdir:
-            chk_tmp = self.tmpdir
-            chk_pth = path
-            if "Windows" == platform.system():
-                # HACK ALERT: the `fixwinpath()` calls are needed because
-                # sometimes a short path name is returned. Also sometimes the
-                # path is lower case so just force it lower on windows.
-                chk_tmp = fixwinpath(chk_tmp)
-                chk_pth = fixwinpath(chk_pth)
-            common = op.commonprefix([chk_pth, chk_tmp])
-            if not common == chk_tmp:
-                self._delete_tmpdir()
+    def _handle_context(self, event=None):
+        if self.docpath:
+            menu = QMenu()
+            menu.addAction(self.mainwin.webview.style().standardIcon(QStyle.SP_BrowserReload), "Reload", self._handle_reload)
+            menu.exec_(event.globalPos())
 
-        # Handle file type.
-        if path.endswith(".txt"):
-            self.docpath = str(path)
-            return True
-        elif path.endswith(".zip"):
-            print "DBGMRK 2"
-            # Extract all zip contents to a temporary directory.
-            self.tmpdir = tempfile.mkdtemp()
-            zfile = zipfile.ZipFile(path)
-            zfile.extractall(self.tmpdir)
+    def _handle_drag(self, event=None):
+        event.accept()
 
-            # Attempt to locate archive info file.
-            arcinfo = op.join(self.tmpdir, ARCINFO)
-            if op.exists(arcinfo):
-                self.docpath = arcinfo
-                return True
+    def _handle_drop(self, event=None):
+        if event.mimeData().hasUrls():
+            self._load_doc(str(event.mimeData().urls()[0].toLocalFile()))
 
-            # Attempt to locate any text file.
-            txts = findfile("*.txt", self.tmpdir)
-            if txts:
-                self.docpath = txts[0]
-                return True
+    def _handle_quit(self):
+        self._delete_tmppath()
+        self._delete_tmpdir()
 
-            # Delete the temporary directory since no valid document was found.
-            self._delete_tmpdir()
-
-        elif path.endswith(".csv"):
-            self.docpath = getuniqname(op.dirname(path), ".txt", "__temp-")
-            with open(self.docpath, "w") as f:
-                f.write('[format="csv"]\n')
-                f.write("|===\n")
-                f.write("include::" + path + "[]\n")
-                f.write("|===\n")
-            self.deldoc = True
-            return True
-
-        return False
-
-    def _handle_navigating(self, event=None):
-        """Handles a navigating event."""
-        url = event.GetURL()
-        if self._set_doc(url):
-            self._load_doc()
-
-    def _handle_navigated(self, event=None):
-        url = event.GetURL()
-        print "DBGMRK 1", self.docpath
-        if url.endswith(".zip"):
-            if self.docpath:
-                # NOTE: This is a hack to get the IE backend to properly render the
-                # document. Without this extra `_load_doc()` call, the zip file
-                # contents will be shown if the file was drag-and-dropped onto the
-                # web view window.
-                self._load_doc()
-            else:
-                self.mainwin.mainpanel.webview.LoadURL(path2url(SPLASH))
-
-    def _open_file(self, event=None):
-        """Handles an open file event."""
-        path = self.mainwin.show_open_file(WILDCARD)
-        if self._set_doc(path):
-            self._load_doc()
-
-    def _load_doc(self, event=None):
-        """Handles the logic to cleanup, render, and display a file.
-
-        :Preconditions:
-          - Attribute `docpath` should be set to a valid file to render.
-        """
-        self.mainwin.mainpanel.webview.LoadURL(path2url(RENDER))
-        self._delete_html()
-        self._create_html()
-        self._display_html()
-
-    def _display_browser(self, event=None):
-        """Opens the rendered document in the default browser."""
+    def _handle_display(self):
+        if not self.docpath:
+            return
+        if not self.tmppath:
+            self._load_doc(reload_=True)
         if not self.tmppath:
             return
         webbrowser.open(self.tmppath)
 
-    def _display_html(self):
-        """Displays the rendered HTML."""
-        if not self.tmppath:
-            return
-        url = path2url(self.tmppath)
-        self.mainwin.mainpanel.webview.LoadURL(url)
-        title = "%s - %s" % (NAMEVER, self.docpath)
-        self.mainwin.SetTitle(title)
-        self.mainwin.fm_dispbw.Enable(True)
-        self.mainwin.fm_reload.Enable(True)
-        self.mainwin.menubar.EnableTop(1, True)
+    def _handle_reload(self):
+        if self.docpath:
+            self._load_doc(reload_=True)
 
-    def _create_html(self):
-        """Creates the rendered HTML."""
+    def _handle_link(self, url=None):
+        # Open URLs to webpages with default browser.
+        if is_webpage(url):
+            webbrowser.open(str(url.toString()))
+            return
+
+        # Open links to Asciidoc files in Doctrine.
+        if is_asciidoc(url2path(url)):
+            self._load_doc(url2path(url))
+            return
+
+        # Open the URL in the webview.
+        self.mainwin.webview.view.load(url)
+
+    def _handle_open(self):
+        # path = self.mainwin.show_open_file("Asciidoc Files (*.txt *.ad *.adoc *.asciidoc)")
+        path = self.mainwin.show_open_file()
+        self._load_doc(path)
+
+    def _load_doc(self, path="", reload_=False):
+        # Delete existing temp files.
+        self._delete_tmppath()
+        self._delete_tmpdir()
+
+        # If not reloading the previous document, clear out tmppath.
+        if not reload_:
+            self.tmppath = None
+            self.tmpdir = None
+
+        # Set the doc path.
+        prev = self.docpath
+        if path:
+            self.docpath = path
         if not self.docpath:
             return
-        self.tmppath = getuniqname(op.dirname(self.docpath), DOCEXT, DOCPRE)
-        AsciiDocAPI().execute(self.docpath, self.tmppath)
-        if self.deldoc:
-            os.remove(self.docpath)
-            self.deldoc = False
+        self.docpath = op.abspath(self.docpath)
 
-    def _delete_html(self):
+        # Attempt to prepare the document for display.
+        url = ""
+        if self.docpath.endswith(".txt"):
+            url = self._prep_text()
+        elif self.docpath.endswith(".zip"):
+            url = self._prep_archive()
+        elif self.docpath.endswith(".csv"):
+            url = self._prep_csv()
+        # NOTE: URL is populated only if ready to display output.
+        if url:
+            self.mainwin.webview.view.load(url)
+            self.mainwin.actn_reload.setDisabled(False)
+            self.mainwin.actn_display.setDisabled(False)
+            self.mainwin.menu_navi.setDisabled(False)
+            self.mainwin.setWindowTitle("%s (%s) - %s" % (
+                op.basename(self.docpath),
+                op.dirname(self.docpath),
+                NAMEVER))
+        elif prev:
+            self.docpath = prev
+
+    def _prep_text(self):
+        if not self.docpath:
+            return
+        if not self.tmppath:
+            self.tmppath = getuniqname(op.dirname(self.docpath), DOCEXT, DOCPRE)
+        try:
+            AsciiDocAPI().execute(self.docpath, self.tmppath)
+        except:
+            print "ERROR", str(sys.exc_info()[0]), str(sys.exc_info()[1])
+        return QUrl().fromLocalFile(self.tmppath)
+
+    def _prep_archive(self):
+        if not self.docpath:
+            return
+        if not self.tmpdir:
+            self.tmpdir = tempfile.mkdtemp()
+        if self.tmpdir and not op.isdir(self.tmpdir):
+            os.makedirs(self.tmpdir)
+        zfile = zipfile.ZipFile(self.docpath)
+        zfile.extractall(self.tmpdir)
+
+        path = ""
+
+        # Attempt to locate archive info file.
+        arcinfo = op.join(self.tmpdir, ARCINFO)
+        if op.exists(arcinfo):
+            path = arcinfo
+
+        # If no archive info file found, attempt to locate any asciidoc text file.
+        if not path:
+            txts = findfile("*.txt", self.tmpdir)
+            if txts:
+                path = txts[0]
+
+        # If no text file path was found, bail.
+        if not path:
+            return
+
+        if not self.tmppath:
+            self.tmppath = getuniqname(op.dirname(path), DOCEXT, DOCPRE)
+        AsciiDocAPI().execute(path, self.tmppath)
+        return QUrl().fromLocalFile(self.tmppath)
+
+    def _prep_csv(self):
+        if not self.docpath:
+            return
+        if not self.tmppath:
+            self.tmppath = getuniqname(op.dirname(self.docpath), DOCEXT, DOCPRE)
+        path = getuniqname(op.dirname(self.docpath), ".txt", "__temp-")
+        with open(path, "w") as f:
+            f.write('[format="csv"]\n')
+            f.write("|===\n")
+            f.write("include::" + self.docpath + "[]\n")
+            f.write("|===\n")
+        AsciiDocAPI().execute(path, self.tmppath)
+        os.remove(path)
+        return QUrl().fromLocalFile(self.tmppath)
+
+    def _delete_tmppath(self):
         """Deletes the rendered HTML."""
         if not self.tmppath:
             return
-        if op.exists(self.tmppath):
-            os.remove(self.tmppath)
-            self.tmppath = None
+        retries = 3
+        while retries:
+            if not op.exists(self.tmppath):
+                return
+            try:
+                os.remove(self.tmppath)
+            except:
+                time.sleep(0.1)
+                retries -= 1
 
     def _delete_tmpdir(self):
         """Deletes the temporary directory."""
@@ -253,29 +260,14 @@ class DoctrineApp(wx.App):
             return
         if op.exists(self.tmpdir):
             shutil.rmtree(self.tmpdir)
-            self.tmpdir = None
 
     def show_main(self):
-        """Shows the main application."""
         self.mainwin.show()
 
     def run_loop(self):
-        """Runs the main application loop."""
         if self.docpath:
             self._load_doc()
-        else:
-            self.mainwin.mainpanel.webview.LoadURL(path2url(SPLASH))
-        self.MainLoop()
-
-    def quit(self, event=None):
-        """Exits the application."""
-        self._delete_html()
-        self._delete_tmpdir()
-        self.mainwin.Destroy()
-
-##==============================================================#
-## SECTION: Function Definitions                                #
-##==============================================================#
+        self.exec_()
 
 def getuniqname(base, ext, pre=""):
     """Returns a unique random file name at the given base directory. Does not
@@ -284,13 +276,18 @@ def getuniqname(base, ext, pre=""):
         uniq = op.join(base, pre + "tmp" + str(uuid.uuid4())[:6] + ext)
         if not os.path.exists(uniq):
             break
-    return uniq
+    return op.normpath(uniq)
 
-def path2url(path):
-    """Converts a local path to a valid file URL. Taken from
-    `http://stackoverflow.com/a/14298190/789078`."""
-    path = op.abspath(path)
-    return urlparse.urljoin("file:", urllib.pathname2url(path))
+def is_webpage(url):
+    # Handle types.
+    url = url2str(url)
+    if type(url) != str:
+        return False
+
+    # Return true if URL is external webpage, false otherwise.
+    if url.startswith("http:") or url.startswith("https:"):
+        return True
+    return False
 
 def findfile(pattern, path):
     """Finds a file matching the given pattern in the given path. Taken from
@@ -302,19 +299,24 @@ def findfile(pattern, path):
                 result.append(op.join(root, name))
     return result
 
-def fixwinpath(path):
-    """Returns a lowercase full path for any given windows path."""
-    buf = create_unicode_buffer(500)
-    winpath = windll.kernel32.GetLongPathNameW
-    winpath(unicode(path), buf, 500)
-    return str(buf.value).lower()
+def url2path(url):
+    url = url2str(url)
+    if url.startswith(URLFILE):
+        url = url[len(URLFILE):]
+    return op.normpath(url)
 
-##==============================================================#
-## SECTION: Main Body                                           #
-##==============================================================#
+def url2str(url):
+    if type(url) == PySide.QtCore.QUrl:
+        url = str(url.toString())
+    return url
+
+def is_asciidoc(path):
+    if path.endswith(".txt"):
+        return True
+    return False
 
 if __name__ == '__main__':
-    app = DoctrineApp()
+    app = DoctrineApp(sys.argv)
     if len(sys.argv) > 1 and op.isfile(sys.argv[1]):
         app.docpath = str(sys.argv[1])
     app.show_main()

@@ -2,4 +2,15 @@ Doctrine Notes
 ==============
 :date: 19 October 2014
 
+== Asciidoc Notes
   - '201410192200': Not sure why but `asciidoc.py` is needed in the root `app/` directory for the built EXE. Without it, an import error is thrown by the `asciidocapi.py`.
+
+== PySide Notes
+  - '201501160717': Had trouble getting QWebView to render JPG images when built to EXE (PNG images would work fine, this is because all other formats are handled by plugins). Did the following:
+      * Added main `qt.conf` file and `plugins/` directory from Python PySide install to the EXE build; this alone did not seem to work. Found out via ProcessMonitor that I could move the `imageformats` directory to the same directory as `doctrine.exe` and it would work (not desirable since want all files in EXE).
+      * In the `C:\Python27\Lib\site-packages\PySide\__init__.py`, added the force option to `_utils.register_qt_conf()`. This caused `doctrine.exe` to fail until the following directories were added to the build:
+         ** `C:\Python27\Lib\site-packages\PySide\imports`
+         ** `C:\Python27\Lib\site-packages\PySide\translations`
+
++
+Once this was done, `doctrine.exe` was able to render JPG properly.

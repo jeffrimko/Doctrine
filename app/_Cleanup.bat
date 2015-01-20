@@ -14,5 +14,7 @@
 ::=============================================================::
 
 rd /S /Q __output__ 2>NUL
+rd /S /Q build 2>NUL
+rd /S /Q dist 2>NUL
 del /S /Q *.log 2>NUL
 del /S /Q *.pyc 2>NUL
