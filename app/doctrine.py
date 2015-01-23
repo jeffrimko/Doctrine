@@ -22,9 +22,21 @@ from asciidocapi import AsciiDocAPI
 import doctview
 
 # Set up the Asciidoc environment.
-os.environ['ASCIIDOC_PY'] = r"asciidoc\asciidoc.py"
+os.environ['ASCIIDOC_PY'] = op.join(op.dirname(__file__), r"asciidoc\asciidoc.py")
 if getattr(sys, 'frozen', None):
     os.environ['ASCIIDOC_PY'] = op.normpath(op.join(sys._MEIPASS, r"asciidoc\asciidoc.py"))
+
+# Splash displayed at startup.
+SPLASH = r"static\splash.html"
+if getattr(sys, 'frozen', None):
+    SPLASH = op.join(sys._MEIPASS, r"static\splash.html")
+SPLASH = QUrl().fromLocalFile(op.abspath(SPLASH))
+
+# Splash displayed at startup.
+RENDER = r"static\render.html"
+if getattr(sys, 'frozen', None):
+    RENDER = op.join(sys._MEIPASS, r"static\render.html")
+RENDER = QUrl().fromLocalFile(op.abspath(RENDER))
 
 # Prefix of the generated HTML document.
 DOCPRE = "__doctrine-"
@@ -72,12 +84,6 @@ class DoctrineApp(QApplication):
         # NOTE: Use to create custom context menu.
         self.mainwin.webview.view.contextMenuEvent = self._handle_context
         self.mainwin.webview.view.mouseReleaseEvent = self._handle_mouse
-        self.mainwin.show = self._handle_show
-
-    def _handle_show(self):
-        QMainWindow.show(self.mainwin)
-        if self.docpath:
-            self._load_doc(self.docpath)
 
     def _nav_forward(self):
         self.mainwin.webview.view.page().triggerAction(QWebPage.Forward)
@@ -161,6 +167,8 @@ class DoctrineApp(QApplication):
             return
         self.docpath = op.abspath(self.docpath)
 
+        self.setOverrideCursor(QCursor(Qt.WaitCursor))
+
         # Attempt to prepare the document for display.
         url = ""
         if self.docpath.endswith(".txt"):
@@ -169,6 +177,7 @@ class DoctrineApp(QApplication):
             url = self._prep_archive()
         elif self.docpath.endswith(".csv"):
             url = self._prep_csv()
+
         # NOTE: URL is populated only if ready to display output.
         if url:
             self.mainwin.webview.view.load(url)
@@ -182,6 +191,8 @@ class DoctrineApp(QApplication):
         elif prev:
             self.docpath = prev
 
+        self.restoreOverrideCursor()
+
     def _prep_text(self):
         if not self.docpath:
             return
@@ -190,7 +201,11 @@ class DoctrineApp(QApplication):
         try:
             AsciiDocAPI().execute(self.docpath, self.tmppath)
         except:
-            print "ERROR", str(sys.exc_info()[0]), str(sys.exc_info()[1])
+            self.restoreOverrideCursor()
+            err_msg = str(sys.exc_info()[0])
+            err_msg += "\n"
+            err_msg += str(sys.exc_info()[1])
+            self.mainwin.show_error_msg(err_msg)
         return QUrl().fromLocalFile(self.tmppath)
 
     def _prep_archive(self):
@@ -263,6 +278,7 @@ class DoctrineApp(QApplication):
 
     def show_main(self):
         self.mainwin.show()
+        self.mainwin.webview.view.load(SPLASH)
 
     def run_loop(self):
         if self.docpath:

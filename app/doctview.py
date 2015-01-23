@@ -47,6 +47,9 @@ class MainWindow(QMainWindow):
         f,_ = QFileDialog.getOpenFileName(self, filter=filter_)
         return str(f)
 
+    def show_error_msg(self, msg="blah"):
+        msg_box = QMessageBox().critical(self, "Error", msg)
+
 class WebView(QWidget):
     def __init__(self):
         super(WebView, self).__init__()
@@ -95,4 +98,5 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
+    window.show_error_msg()
     app.exec_()
