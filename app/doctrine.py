@@ -1,25 +1,30 @@
-from ctypes import *
-import filecmp
+##==============================================================#
+## SECTION: Imports                                             #
+##==============================================================#
+
 import fnmatch
 import os
-import platform
 import shutil
 import sys
 import tempfile
-import urllib
-import urlparse
 import uuid
 import webbrowser
 import zipfile
 import time
 import os.path as op
+from ctypes import *
 
 import PySide
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtWebKit import *
 from asciidocapi import AsciiDocAPI
+
 import doctview
+
+##==============================================================#
+## SECTION: Global Definitions                                  #
+##==============================================================#
 
 # Set up the Asciidoc environment.
 os.environ['ASCIIDOC_PY'] = op.join(op.dirname(__file__), r"asciidoc\asciidoc.py")
@@ -43,6 +48,7 @@ DOCPRE = "__doctrine-"
 # Extension of the generated HTML document.
 DOCEXT = ".html"
 
+# URL prefix of a local file.
 URLFILE = "file:///"
 
 # Name of archive info file.
@@ -51,8 +57,15 @@ ARCINFO = "__archive_info__.txt"
 # Name and version of the application.
 NAMEVER = "Doctrine 0.1.0-alpha"
 
+##==============================================================#
+## SECTION: Class Definitions                                   #
+##==============================================================#
+
 class DoctrineApp(QApplication):
+    """The main Doctrine application."""
+
     def __init__(self, *args, **kwargs):
+        """Initializes the application."""
         super(DoctrineApp, self).__init__(*args, **kwargs)
         self.aboutToQuit.connect(self._handle_quit)
         self._init_ui()
@@ -62,6 +75,7 @@ class DoctrineApp(QApplication):
         self.tmpdir = None
 
     def _init_ui(self):
+        """Initializes the UI."""
         self.mainwin = doctview.MainWindow()
         self.mainwin.actn_reload.setDisabled(True)
         self.mainwin.actn_display.setDisabled(True)
@@ -86,12 +100,15 @@ class DoctrineApp(QApplication):
         self.mainwin.webview.view.mouseReleaseEvent = self._handle_mouse
 
     def _nav_forward(self):
+        """Navigates the web view forward."""
         self.mainwin.webview.view.page().triggerAction(QWebPage.Forward)
 
     def _nav_back(self):
+        """Navigates the web view back."""
         self.mainwin.webview.view.page().triggerAction(QWebPage.Back)
 
     def _handle_mouse(self, event=None):
+        """Handles mouse release events."""
         if event.button() == Qt.MouseButton.XButton1:
             self._nav_back()
             return
@@ -101,23 +118,28 @@ class DoctrineApp(QApplication):
         return QWebView.mouseReleaseEvent(self.mainwin.webview.view, event)
 
     def _handle_context(self, event=None):
+        """Handles context menu creation events."""
         if self.docpath:
             menu = QMenu()
             menu.addAction(self.mainwin.webview.style().standardIcon(QStyle.SP_BrowserReload), "Reload", self._handle_reload)
             menu.exec_(event.globalPos())
 
     def _handle_drag(self, event=None):
+        """Handles drag enter events."""
         event.accept()
 
     def _handle_drop(self, event=None):
+        """Handles drag-and-drop events."""
         if event.mimeData().hasUrls():
             self._load_doc(str(event.mimeData().urls()[0].toLocalFile()))
 
     def _handle_quit(self):
+        """Handles quitting the application."""
         self._delete_tmppath()
         self._delete_tmpdir()
 
     def _handle_display(self):
+        """Handles displaying the document in the web view."""
         if not self.docpath:
             return
         if not self.tmppath:
@@ -127,10 +149,12 @@ class DoctrineApp(QApplication):
         webbrowser.open(self.tmppath)
 
     def _handle_reload(self):
+        """Handles reloading the document."""
         if self.docpath:
             self._load_doc(reload_=True)
 
     def _handle_link(self, url=None):
+        """Handles link clicked events."""
         # Open URLs to webpages with default browser.
         if is_webpage(url):
             webbrowser.open(str(url.toString()))
@@ -145,11 +169,13 @@ class DoctrineApp(QApplication):
         self.mainwin.webview.view.load(url)
 
     def _handle_open(self):
+        """Handles open file menu events."""
         # path = self.mainwin.show_open_file("Asciidoc Files (*.txt *.ad *.adoc *.asciidoc)")
         path = self.mainwin.show_open_file()
         self._load_doc(path)
 
     def _load_doc(self, path="", reload_=False):
+        """Handles loading the document to view."""
         # Delete existing temp files.
         self._delete_tmppath()
         self._delete_tmpdir()
@@ -194,6 +220,7 @@ class DoctrineApp(QApplication):
         self.restoreOverrideCursor()
 
     def _prep_text(self):
+        """Prepares a text document for viewing."""
         if not self.docpath:
             return
         if not self.tmppath:
@@ -209,6 +236,7 @@ class DoctrineApp(QApplication):
         return QUrl().fromLocalFile(self.tmppath)
 
     def _prep_archive(self):
+        """Prepares an archive for viewing."""
         if not self.docpath:
             return
         if not self.tmpdir:
@@ -241,6 +269,7 @@ class DoctrineApp(QApplication):
         return QUrl().fromLocalFile(self.tmppath)
 
     def _prep_csv(self):
+        """Prepares a CSV file for viewing."""
         if not self.docpath:
             return
         if not self.tmppath:
@@ -277,13 +306,19 @@ class DoctrineApp(QApplication):
             shutil.rmtree(self.tmpdir)
 
     def show_main(self):
+        """Shows the main view of the application."""
         self.mainwin.show()
         self.mainwin.webview.view.load(SPLASH)
 
     def run_loop(self):
+        """Runs the main loop of the application."""
         if self.docpath:
             self._load_doc()
         self.exec_()
+
+##==============================================================#
+## SECTION: Function Definitions                                #
+##==============================================================#
 
 def getuniqname(base, ext, pre=""):
     """Returns a unique random file name at the given base directory. Does not
@@ -295,6 +330,7 @@ def getuniqname(base, ext, pre=""):
     return op.normpath(uniq)
 
 def is_webpage(url):
+    """Returns true if the given URL is for a webpage (rather than a local file)."""
     # Handle types.
     url = url2str(url)
     if type(url) != str:
@@ -316,22 +352,31 @@ def findfile(pattern, path):
     return result
 
 def url2path(url):
+    """Returns the normalized path of the given URL."""
     url = url2str(url)
     if url.startswith(URLFILE):
         url = url[len(URLFILE):]
     return op.normpath(url)
 
 def url2str(url):
+    """Returns given URL as a string."""
     if type(url) == PySide.QtCore.QUrl:
         url = str(url.toString())
     return url
 
 def is_asciidoc(path):
+    """Returns true if the given path is an Asciidoc file."""
+    # NOTE: Only checking the extension for now.
     if path.endswith(".txt"):
         return True
     return False
 
+##==============================================================#
+## SECTION: Main Body                                           #
+##==============================================================#
+
 if __name__ == '__main__':
+    # Show the main application.
     app = DoctrineApp(sys.argv)
     if len(sys.argv) > 1 and op.isfile(sys.argv[1]):
         app.docpath = str(sys.argv[1])

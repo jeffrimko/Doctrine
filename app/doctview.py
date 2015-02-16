@@ -1,3 +1,7 @@
+##==============================================================#
+## SECTION: Imports                                             #
+##==============================================================#
+
 import os
 import sys
 
@@ -7,7 +11,9 @@ from PySide.QtGui import *
 from PySide.QtWebKit import *
 from asciidocapi import AsciiDocAPI
 
-os.environ['ASCIIDOC_PY'] = r"asciidoc\asciidoc.py"
+##==============================================================#
+## SECTION: Class Definitions                                   #
+##==============================================================#
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -44,13 +50,18 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.webview)
 
     def show_open_file(self, filter_="All Files (*)"):
+        """Shows the open file dialog."""
         f,_ = QFileDialog.getOpenFileName(self, filter=filter_)
         return str(f)
 
-    def show_error_msg(self, msg="blah"):
+    def show_error_msg(self, msg):
+        """Shows an error message."""
         msg_box = QMessageBox().critical(self, "Error", msg)
 
 class WebView(QWidget):
+    """Main web view with optional inspector; some of this code is from
+    `http://agateau.com/2012/pyqtwebkit-experiments-part-2-debugging/`."""
+
     def __init__(self):
         super(WebView, self).__init__()
         self.view = QWebView(self)
@@ -83,7 +94,8 @@ class WebView(QWidget):
 
 class WebPage(QWebPage):
     """
-    Makes it possible to use a Python logger to print javascript console messages
+    Makes it possible to use a Python logger to print Javascript console
+    messages.
     """
     def __init__(self, logger=None, parent=None):
         super(WebPage, self).__init__(parent)
@@ -93,6 +105,10 @@ class WebPage(QWebPage):
 
     def javaScriptConsoleMessage(self, msg, lineNumber, sourceID):
         self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
+
+##==============================================================#
+## SECTION: Main Body                                           #
+##==============================================================#
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
