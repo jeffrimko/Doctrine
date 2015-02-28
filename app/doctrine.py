@@ -104,9 +104,12 @@ class DoctrineApp(QApplication):
         scut_reload = QShortcut(self.mainwin)
         scut_reload.setKey(QKeySequence("F5"))
         scut_reload.activated.connect(self._handle_reload)
-        scut_find = QShortcut(self.mainwin)
-        scut_find.setKey(QKeySequence("F3"))
-        scut_find.activated.connect(self._display_find)
+        scut_find1 = QShortcut(self.mainwin)
+        scut_find1.setKey(QKeySequence("F3"))
+        scut_find1.activated.connect(self._display_find)
+        scut_find2 = QShortcut(self.mainwin)
+        scut_find2.setKey(QKeySequence("Ctrl+F"))
+        scut_find2.activated.connect(self._display_find)
 
         # NOTE: Use to create custom context menu.
         self.mainwin.webview.view.contextMenuEvent = self._handle_context

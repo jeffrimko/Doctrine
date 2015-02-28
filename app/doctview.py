@@ -18,7 +18,9 @@ from asciidocapi import AsciiDocAPI
 class FindDialog(QDialog):
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)
-        self.setWindowFlags(Qt.StrongFocus)
+        self.setWindowFlags(Qt.StrongFocus | Qt.MSWindowsFixedSizeDialogHint)
+        self.setFixedSize(self.sizeHint())
+        self.setSizeGripEnabled(False)
         self.setWindowTitle('Find In Document')
         self.find_edit = QLineEdit()
         self.find_btn = QPushButton('Next')
