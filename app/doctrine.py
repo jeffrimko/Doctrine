@@ -87,13 +87,15 @@ class DoctrineApp(QApplication):
         self.mainwin.actn_open.triggered.connect(self._handle_open)
         self.mainwin.actn_quit.triggered.connect(self.quit)
         self.mainwin.actn_reload.triggered.connect(self._handle_reload)
-        self.mainwin.actn_frwd.triggered.connect(self._nav_forward)
-        self.mainwin.actn_back.triggered.connect(self._nav_back)
+        self.mainwin.actn_frwd.triggered.connect(self._handle_nav_forward)
+        self.mainwin.actn_back.triggered.connect(self._handle_nav_backward)
         self.mainwin.actn_display.triggered.connect(self._handle_display)
         self.mainwin.webview.view.linkClicked.connect(self._handle_link)
         self.mainwin.webview.view.setAcceptDrops(True)
         self.mainwin.webview.view.dragEnterEvent = self._handle_drag
         self.mainwin.webview.view.dropEvent = self._handle_drop
+        self.mainwin.find_dlog.find_btn.clicked.connect(self._handle_find_forward)
+        self.mainwin.find_dlog.prev_btn.clicked.connect(self._handle_find_backward)
 
         # Set up how web links are handled.
         self.mainwin.webview.view.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
@@ -110,13 +112,26 @@ class DoctrineApp(QApplication):
         self.mainwin.webview.view.contextMenuEvent = self._handle_context
         self.mainwin.webview.view.mouseReleaseEvent = self._handle_mouse
 
-    def _nav_forward(self):
+    def _handle_nav_forward(self):
         """Navigates the web view forward."""
         self.mainwin.webview.view.page().triggerAction(QWebPage.Forward)
 
-    def _nav_back(self):
+    def _handle_nav_backward(self):
         """Navigates the web view back."""
         self.mainwin.webview.view.page().triggerAction(QWebPage.Back)
+
+    def _handle_find_forward(self, event=None):
+        self._find()
+
+    def _handle_find_backward(self, event=None):
+        options = QWebPage.FindBackward
+        self._find(options)
+
+    def _find(self, options=0):
+        text = self.mainwin.find_dlog.find_edit.text()
+        if self.mainwin.find_dlog.case_cb.checkState():
+            options |= QWebPage.FindCaseSensitively
+        self.mainwin.webview.view.findText(text, options=options)
 
     def _handle_mouse(self, event=None):
         """Handles mouse release events."""
@@ -130,7 +145,6 @@ class DoctrineApp(QApplication):
 
     def _handle_context(self, event=None):
         """Handles context menu creation events."""
-        print self.mainwin.webview.view.findText("is")
         if self.docpath:
             menu = QMenu()
             menu.addAction(self.mainwin.webview.style().standardIcon(QStyle.SP_BrowserReload), "Reload", self._handle_reload)
