@@ -15,6 +15,24 @@ from asciidocapi import AsciiDocAPI
 ## SECTION: Class Definitions                                   #
 ##==============================================================#
 
+class FindDialog(QDialog):
+    def __init__(self, parent=None):
+        QDialog.__init__(self, parent)
+        self.setWindowFlags(Qt.StrongFocus)
+        self.setWindowTitle('Find In Document')
+        self.find_edit = QLineEdit()
+        self.find_btn = QPushButton('Find')
+        self.next_btn = QPushButton('Next')
+        self.prev_btn = QPushButton('Previous')
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        vbox.addWidget(self.find_edit)
+        hbox.addWidget(self.find_btn)
+        hbox.addWidget(self.next_btn)
+        hbox.addWidget(self.prev_btn)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -49,6 +67,8 @@ class MainWindow(QMainWindow):
         self.webview = WebView()
         self.setCentralWidget(self.webview)
 
+        self.find_dlog = FindDialog(self)
+
     def show_open_file(self, filter_="All Files (*)"):
         """Shows the open file dialog."""
         f,_ = QFileDialog.getOpenFileName(self, filter=filter_)
@@ -57,6 +77,9 @@ class MainWindow(QMainWindow):
     def show_error_msg(self, msg):
         """Shows an error message."""
         msg_box = QMessageBox().critical(self, "Error", msg)
+
+    def show_find_prompt(self):
+        pass
 
 class WebView(QWidget):
     """Main web view with optional inspector; some of this code is from
@@ -112,7 +135,9 @@ class WebPage(QWebPage):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    window.show_error_msg()
+    # search = FindDialog()
+    # search.show()
+    # window = MainWindow()
+    # window.show()
+    # window.show_error_msg()
     app.exec_()

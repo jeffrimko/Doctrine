@@ -76,11 +76,14 @@ class DoctrineApp(QApplication):
 
     def _init_ui(self):
         """Initializes the UI."""
+        # Set up basic UI elements.
         self.mainwin = doctview.MainWindow()
+        self.mainwin.setWindowTitle(NAMEVER)
         self.mainwin.actn_reload.setDisabled(True)
         self.mainwin.actn_display.setDisabled(True)
         self.mainwin.menu_navi.setDisabled(True)
-        self.mainwin.webview.view.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
+
+        # Set up event handling.
         self.mainwin.actn_open.triggered.connect(self._handle_open)
         self.mainwin.actn_quit.triggered.connect(self.quit)
         self.mainwin.actn_reload.triggered.connect(self._handle_reload)
@@ -91,10 +94,18 @@ class DoctrineApp(QApplication):
         self.mainwin.webview.view.setAcceptDrops(True)
         self.mainwin.webview.view.dragEnterEvent = self._handle_drag
         self.mainwin.webview.view.dropEvent = self._handle_drop
-        shortcut = QShortcut(self.mainwin)
-        shortcut.setKey(QKeySequence("F5"))
-        shortcut.activated.connect(self._handle_reload)
-        self.mainwin.setWindowTitle(NAMEVER)
+
+        # Set up how web links are handled.
+        self.mainwin.webview.view.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
+
+        # Set up keyboard shortcuts.
+        scut_reload = QShortcut(self.mainwin)
+        scut_reload.setKey(QKeySequence("F5"))
+        scut_reload.activated.connect(self._handle_reload)
+        scut_find = QShortcut(self.mainwin)
+        scut_find.setKey(QKeySequence("F3"))
+        scut_find.activated.connect(self._display_find)
+
         # NOTE: Use to create custom context menu.
         self.mainwin.webview.view.contextMenuEvent = self._handle_context
         self.mainwin.webview.view.mouseReleaseEvent = self._handle_mouse
@@ -119,6 +130,7 @@ class DoctrineApp(QApplication):
 
     def _handle_context(self, event=None):
         """Handles context menu creation events."""
+        print self.mainwin.webview.view.findText("is")
         if self.docpath:
             menu = QMenu()
             menu.addAction(self.mainwin.webview.style().standardIcon(QStyle.SP_BrowserReload), "Reload", self._handle_reload)
@@ -152,6 +164,11 @@ class DoctrineApp(QApplication):
         """Handles reloading the document."""
         if self.docpath:
             self._load_doc(reload_=True)
+
+    def _display_find(self):
+        self.mainwin.find_dlog.show()
+        self.mainwin.find_dlog.activateWindow()
+        self.mainwin.find_dlog.find_edit.setFocus()
 
     def _handle_link(self, url=None):
         """Handles link clicked events."""
