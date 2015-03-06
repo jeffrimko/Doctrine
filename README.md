@@ -8,3 +8,5 @@ To view a document, simply open the text file in the application. The text will 
 Additionally, a document can be archived in a zip file. Asset files can be included in the archive and relative links should function. If the zip file contains an `__archive_info__.txt` (check out [Archiver](https://github.com/jeffrimko/Archiver)) it will rendered, otherwise the first found `.txt` file will be rendered.
 
 Big thanks to [Stuart Rackham](http://www.methods.co.nz/stuart.html) for developing the excellent AsciiDoc format.
+
+Additional details on this project are available at [jeffcomput.es/projects/doctrine](http://jeffcomput.es/projects/doctrine).
