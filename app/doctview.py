@@ -1,3 +1,9 @@
+"""This script implements the GUI for the Doctrine application."""
+
+##==============================================================#
+## DEVELOPED 2015, REVISED 2015, Jeff Rimko.                    #
+##==============================================================#
+
 ##==============================================================#
 ## SECTION: Imports                                             #
 ##==============================================================#
@@ -40,7 +46,6 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         # Set up window.
-        # self.setWindowTitle("Doctrine")
         self.resize(800, 600)
 
         # Set up `File` menu.
@@ -54,6 +59,7 @@ class MainWindow(QMainWindow):
         self.menu_file.addAction(self.actn_display)
         self.menu_file.addAction(self.actn_quit)
 
+        # Set up `Navigation` menu.
         self.menu_navi = QMenu("&Navigation")
         self.actn_frwd = QAction("&Forward", self.menu_navi)
         self.actn_back = QAction("&Backward", self.menu_navi)
@@ -66,9 +72,11 @@ class MainWindow(QMainWindow):
         self.menubar.addMenu(self.menu_navi)
         self.setMenuBar(self.menubar)
 
+        # Set up main web view.
         self.webview = WebView()
         self.setCentralWidget(self.webview)
 
+        # Set up find dialog.
         self.find_dlog = FindDialog(self)
 
     def show_open_file(self, filter_="All Files (*)"):
@@ -139,7 +147,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     # search = FindDialog()
     # search.show()
-    # window = MainWindow()
-    # window.show()
+    window = MainWindow()
+    window.show()
     # window.show_error_msg()
     app.exec_()

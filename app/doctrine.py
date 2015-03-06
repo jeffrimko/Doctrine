@@ -1,3 +1,9 @@
+"""This script implements the main application logic for Doctrine."""
+
+##==============================================================#
+## DEVELOPED 2015, REVISED 2015, Jeff Rimko.                    #
+##==============================================================#
+
 ##==============================================================#
 ## SECTION: Imports                                             #
 ##==============================================================#
@@ -7,10 +13,10 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import uuid
 import webbrowser
 import zipfile
-import time
 import os.path as op
 from ctypes import *
 
@@ -76,6 +82,14 @@ class DoctrineApp(QApplication):
 
     def _init_ui(self):
         """Initializes the UI."""
+        # Set up palette.
+        pal = self.palette()
+        col = pal.color(QPalette.Highlight)
+        pal.setColor(QPalette.Inactive, QPalette.Highlight, col)
+        col = pal.color(QPalette.HighlightedText)
+        pal.setColor(QPalette.Inactive, QPalette.HighlightedText, col)
+        self.setPalette(pal)
+
         # Set up basic UI elements.
         self.mainwin = doctview.MainWindow()
         self.mainwin.setWindowTitle(NAMEVER)
@@ -94,8 +108,8 @@ class DoctrineApp(QApplication):
         self.mainwin.webview.view.setAcceptDrops(True)
         self.mainwin.webview.view.dragEnterEvent = self._handle_drag
         self.mainwin.webview.view.dropEvent = self._handle_drop
-        self.mainwin.find_dlog.find_btn.clicked.connect(self._handle_find_forward)
-        self.mainwin.find_dlog.prev_btn.clicked.connect(self._handle_find_backward)
+        self.mainwin.find_dlog.find_btn.clicked.connect(self._handle_find_next)
+        self.mainwin.find_dlog.prev_btn.clicked.connect(self._handle_find_prev)
 
         # Set up how web links are handled.
         self.mainwin.webview.view.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
@@ -111,6 +125,13 @@ class DoctrineApp(QApplication):
         scut_find2.setKey(QKeySequence("Ctrl+F"))
         scut_find2.activated.connect(self._display_find)
 
+        scut_find_next = QShortcut(self.mainwin)
+        scut_find_next.setKey(QKeySequence("Ctrl+N"))
+        scut_find_next.activated.connect(self._handle_find_next)
+        scut_find_prev = QShortcut(self.mainwin)
+        scut_find_prev.setKey(QKeySequence("Ctrl+P"))
+        scut_find_prev.activated.connect(self._handle_find_prev)
+
         # NOTE: Use to create custom context menu.
         self.mainwin.webview.view.contextMenuEvent = self._handle_context
         self.mainwin.webview.view.mouseReleaseEvent = self._handle_mouse
@@ -123,10 +144,10 @@ class DoctrineApp(QApplication):
         """Navigates the web view back."""
         self.mainwin.webview.view.page().triggerAction(QWebPage.Back)
 
-    def _handle_find_forward(self, event=None):
+    def _handle_find_next(self, event=None):
         self._find()
 
-    def _handle_find_backward(self, event=None):
+    def _handle_find_prev(self, event=None):
         options = QWebPage.FindBackward
         self._find(options)
 
