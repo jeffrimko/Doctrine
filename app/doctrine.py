@@ -126,7 +126,6 @@ class DoctrineApp(QApplication):
         scut_find2 = QShortcut(self.mainwin)
         scut_find2.setKey(QKeySequence("Ctrl+F"))
         scut_find2.activated.connect(self._display_find)
-
         scut_find_next = QShortcut(self.mainwin)
         scut_find_next.setKey(QKeySequence("Ctrl+N"))
         scut_find_next.activated.connect(self._handle_find_next)
@@ -147,13 +146,16 @@ class DoctrineApp(QApplication):
         self.mainwin.webview.view.page().triggerAction(QWebPage.Back)
 
     def _handle_find_next(self, event=None):
+        """Find the next occurrence of the phrase in the find dialog."""
         self._find()
 
     def _handle_find_prev(self, event=None):
+        """Find the previous occurrence of the phrase in the find dialog."""
         options = QWebPage.FindBackward
         self._find(options)
 
     def _find(self, options=0):
+        """Find the phrase in the find dialog."""
         text = self.mainwin.find_dlog.find_edit.text()
         if self.mainwin.find_dlog.case_cb.checkState():
             options |= QWebPage.FindCaseSensitively
@@ -206,6 +208,7 @@ class DoctrineApp(QApplication):
             self._load_doc(reload_=True)
 
     def _display_find(self):
+        """Displays the find dialog."""
         self.mainwin.find_dlog.show()
         self.mainwin.find_dlog.activateWindow()
         self.mainwin.find_dlog.find_edit.setFocus()
