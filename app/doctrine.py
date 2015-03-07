@@ -63,6 +63,10 @@ ARCINFO = "__archive_info__.txt"
 # Name and version of the application.
 NAMEVER = "Doctrine 0.1.0-alpha"
 
+FILETYPES = dict()
+FILETYPES['AsciiDoc'] = ["*.txt", "*.ad", "*.adoc", "*.asciidoc"]
+FILETYPES['Zip File'] = ["*.zip"]
+
 ##==============================================================#
 ## SECTION: Class Definitions                                   #
 ##==============================================================#
@@ -164,10 +168,10 @@ class DoctrineApp(QApplication):
     def _handle_mouse(self, event=None):
         """Handles mouse release events."""
         if event.button() == Qt.MouseButton.XButton1:
-            self._nav_back()
+            self._handle_nav_backward()
             return
         if event.button() == Qt.MouseButton.XButton2:
-            self._nav_forward()
+            self._handle_nav_forward()
             return
         return QWebView.mouseReleaseEvent(self.mainwin.webview.view, event)
 
@@ -230,8 +234,7 @@ class DoctrineApp(QApplication):
 
     def _handle_open(self):
         """Handles open file menu events."""
-        # path = self.mainwin.show_open_file("Asciidoc Files (*.txt *.ad *.adoc *.asciidoc)")
-        path = self.mainwin.show_open_file()
+        path = self.mainwin.show_open_file(format_filter(FILETYPES))
         self._load_doc(path)
 
     def _load_doc(self, path="", reload_=False):
@@ -430,6 +433,15 @@ def is_asciidoc(path):
     if path.endswith(".txt"):
         return True
     return False
+
+def format_filter(filetypes):
+    """Returns a filetype filter formatted for the Open File prompt."""
+    filt = ""
+    for t in sorted(filetypes, key=lambda key: filetypes[key]):
+        filt += "%s (" % (t)
+        filt += " ".join(e for e in filetypes[t])
+        filt += ");;"
+    return filt.strip(";;")
 
 ##==============================================================#
 ## SECTION: Main Body                                           #
