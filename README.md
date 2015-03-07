@@ -11,6 +11,14 @@ The current status is **alpha development**. For now the software is largely a p
 
 This project is targeting Windows during alpha development. Porting to other platforms is planned for future versions.
 
+## Installation
+The plan is to release Doctrine as a stand-alone executable (e.g. `doctrine.exe` on Windows). The only installation required would be to copy the executable to a directory.
+
+The source for Doctrine can be ran if the following required items are installed:
+
+  - Python 2.7
+  - PySide 1.2.2
+
 ## Usage
 To view a document, simply open it in Doctrine. The markup will be rendered to a temporary file which will be deleted either upon exiting Doctrine or when another document is opened.
 
