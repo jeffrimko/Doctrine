@@ -31,6 +31,11 @@ The following document file types are supported:
   - AsciiDoc (`*.txt`, `*.ad`, `*.adoc`, `*.asciidoc`) - Text file formatted using [AsciiDoc](http://asciidoc.org/) markup.
   - Zip File (`*.zip`) - If the zip file contains a root `__archive_info__.txt` file (check out [Archiver](https://github.com/jeffrimko/Archiver)), that file will be rendered as AsciiDoc. Otherwise, the first valid markup file found will be rendered. Relative links to assets in the zip file should work.
 
+## Demo
+The following is a simple example of rendering an AsciiDoc file with Doctrine.
+
+![Doctrine Demo](doc/demos/doctrine_demo.gif)
+
 ## Final Thoughts
 Big thanks to [Stuart Rackham](http://www.methods.co.nz/stuart.html) for developing the excellent AsciiDoc format.
 
